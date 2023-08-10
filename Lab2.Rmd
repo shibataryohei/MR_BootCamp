@@ -1,0 +1,68 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-08-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{R}
+rm(list = ls(all = TRUE))
+# dsetwd("fill in here") # the location of your MR files
+# setwd("//Users//cms1//Desktop//MRSLIDES2020//") # all my files for MR are here
+# read the snp to exposure file
+read_csv("leadihd21.csv") -> vtas
+
+# calculate F-statistic for each SNP
+vtas %>% 
+  mutate(f1 = (beta * beta) / (se * se)) -> Fcalc_tbw
+
+Fcalc_tbw$f1 %>% 
+  mean
+
+Fcalc_tbw %>% 
+  select(SNP, f1) %>% 
+  filter(f1 < 10)
+```
+
+* Did any of the SNPs have F-statistic <10?
+  * No SNPS
+* What would you do if the standard error for SNP on exposure was missing?
+  * Remove or impute the SNPs
+  
+# 2. Is the instrument for iron associated with potential confounders?
+```{R}
+vtas %>% 
+  select(SNP, eaf, beta, se, other_allele, effect_allele) %>% 
+  write_csv("Lab2/MRBase.csv")
+```
+
+* Was iron associated with any of these potential confounders?
+  * No
+* What would you if iron was associated with these potential confounders?
+  * Change the IV
+*	Were all the SNPs available in UKBiobank?
+  * Yes, they are avaialble.
+* What should you do for the unavailable SNPs?
+  * Use different database.
+
+# 3. Is the instrument for iron associated with survival?
+* Was iron associated with parental attained age?
+  * No
+* What would you if iron was associated with parental attained age?
+  * Consider selection biases
+*	Were all the SNPs available in UKBiobank?
+  * Yes
+* What should you do for the unavailable SNPs?
+  * Remove or impute the SNPs
+  
+```{R}
+vtas$SNP %>% 
+  cat(., sep = ", ")
+
+```
+
+

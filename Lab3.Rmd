@@ -1,0 +1,116 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-08-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+```
+
+```{R}
+rm(list = ls(all = TRUE))
+#i install MRbase items
+install.packages("devtools")
+library(devtools)
+install_github("MRCIEU/TwoSampleMR")
+library(TwoSampleMR)
+library(readr)
+library(MendelianRandomization)
+```
+
+# read in SNP to exposure GWAS downloaded from Long et al 2017
+
+```{R}
+untar("long_et_al_associations.tar.gz",
+      files = "Long_et_al_associations/gwas.summary.1E-5.tsv")
+untar("long_et_al_associations.tar",
+      files = "Long_et_al_associations/gwas.summary.1E-5.tsv")
+```
+
+
+# ii read in an extract of SNPs to exposure concerning theobromine only
+# iii select SNPs with p-value<5x10-6
+# iv only keep uncorrelated SNPs
+```{R}
+read.csv("long-theobromine.txt",
+         header = TRUE) -> long
+
+long %>% 
+  filter(BIOCHEMICAL == "theobromine") %>% # 85 SNPs
+  filter(pvalue < 0.000005) %>% # 51 SNPs
+  rename(SNP = rsid,
+         beta.exposure = EffectSize,
+         se.exposure = EffectSizeSE,
+          effect_allele.exposure = alt,
+          other_allele.exposure = ref,
+          eaf.exposure = AltFreq,
+         pval.exposure = pvalue,
+          samplesize.exposure = num_GWAS_genomes) %>% 
+  mutate(units.exposure = "Units", #not figured out yet
+                gene.exposure = "gene",
+                exposure = "theobromine") -> vta
+```
+
+# iv use MRbase to find indepnednt SNPs with r2 < 0.05
+# v write out a CSV file for future reference
+```{R}
+clump_data(vta,
+           clump_r2 = 0.05) -> vtas
+
+nrow(vtas)
+write.csv(vtas,"Lab3/theobro.csv")
+```
+
+
+# 2a use MR base to get the estimates
+```{R}
+extract_outcome_data(vtas$SNP, 
+                     c('ieu-a-7'), # Coronary heart disease
+                     )  -> outcome_datm
+
+harmonise_data(vtas,
+               outcome_datm) -> datm
+
+datm %>% 
+  mr -> zz
+
+zz %>% 
+  select(method, b, se, pval) %>% 
+  knitr::kable(.)
+```
+|method                    |          b|        se|      pval|
+|:-------------------------|----------:|---------:|---------:|
+|MR Egger                  | -0.0174497| 0.0476675| 0.7194228|
+|Weighted median           | -0.0212925| 0.0227673| 0.3496739|
+|Inverse variance weighted |  0.0050006| 0.0188632| 0.7909318|
+|Simple mode               | -0.0400357| 0.0402025| 0.3341456|
+|Weighted mode             | -0.0431078| 0.0386279| 0.2809138|
+
+
+# 2b put them into MR to get extra diagnostics
+```{R}
+library(MendelianRandomization)
+
+datm %>% 
+  filter(mr_keep == "TRUE") -> datm2
+
+mr_input(datm2$beta.exposure,
+         datm2$se.exposure,
+         datm2$beta.outcome,
+         datm2$se.outcome) -> MRInputObject
+
+mr_ivw(MRInputObject)
+mr_median(MRInputObject)
+mr_egger(MRInputObject)
+```
+
+
+# 4. Now answer the following questions
+* Do you think all the SNPs predicting theobromine are valid instruments? Please explain your answer.
+  * No. 85 - 51 = 24 SNPs were not significant (i.e., p >10e-5), and 51 - 17 SNPs were r2 >= 0.05.
+* Based on your findings do you think theobromine causes IHD?
+  * No. Any of MR main analysis and sensitive did not show the significance.
+* Is there any other analysis you would like to do?
